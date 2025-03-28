@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Tools;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GenerateMigrationRequest;
 use App\Http\Services\Tools\MigrationGeneratorService;
-use Illuminate\Support\Str;  // Ini sudah benar
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 
 class MigrationGeneratorController extends Controller
@@ -27,7 +27,6 @@ class MigrationGeneratorController extends Controller
         try {
             $sql = $this->preprocessSql($request->sql);
 
-            // Validate SQL structure
             if (!$this->isValidSql($sql)) {
                 throw new \Exception("Invalid SQL structure detected");
             }
@@ -76,24 +75,16 @@ class MigrationGeneratorController extends Controller
 
     protected function preprocessSql(string $sql): string
     {
-        // Remove comments
         $sql = preg_replace('/\/\*.*?\*\/|--.*$/ms', '', $sql);
-
-        // Replace multiple spaces
         $sql = preg_replace('/\s+/', ' ', $sql);
-
-        // Trim and ensure semicolon
         return trim($sql, " \t\n\r\0\x0B;") . ';';
     }
 
     protected function isValidSql(string $sql): bool
     {
-        // Check basic structure
         if (!preg_match('/CREATE\s+TABLE/i', $sql)) {
             return false;
         }
-
-        // Check balanced parentheses
         if (substr_count($sql, '(') !== substr_count($sql, ')')) {
             return false;
         }
@@ -103,9 +94,7 @@ class MigrationGeneratorController extends Controller
 
     protected function normalizeSql(string $sql): string
     {
-        // Remove comments
         $sql = preg_replace('/\/\*.*?\*\/|--.*?$/ms', '', $sql);
-        // Replace multiple spaces with single space
         $sql = preg_replace('/\s+/', ' ', $sql);
         return trim($sql);
     }

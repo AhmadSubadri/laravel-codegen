@@ -104,36 +104,33 @@ class MigrationGeneratorService
         $timestampsCode = $timestamps ? '' : "\n    public \$timestamps = false;";
 
         return <<<PHP
-<?php
+        <?php
 
-namespace App\Models;
+        namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+        use Illuminate\Database\Eloquent\Factories\HasFactory;
+        use Illuminate\Database\Eloquent\Model;
 
-class {$modelName} extends Model
-{
-    use HasFactory;
+        class {$modelName} extends Model
+        {
+            use HasFactory;
 
-    protected \$table = '{$tableName}';
+            protected \$table = '{$tableName}';
 
-    protected \$fillable = [
-        {$fillableStr}
-    ];
+            protected \$fillable = [
+                {$fillableStr}
+            ];
 
-    protected \$casts = [
-        {$castsStr}
-    ];{$timestampsCode}
-}
-PHP;
+            protected \$casts = [
+                {$castsStr}
+            ];{$timestampsCode}
+        }
+        PHP;
     }
 
     protected function extractTables(string $sql): array
     {
-        // Normalize SQL first
         $sql = $this->normalizeSql($sql);
-
-        // Enhanced pattern to handle more SQL variations
         $pattern = '/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?([^`"\s]+)[`"]?\s*\(([\s\S]+?)\)\s*(?:ENGINE|CHARSET|;|$)/i';
 
         if (!preg_match_all($pattern, $sql, $matches, PREG_SET_ORDER)) {
@@ -207,27 +204,27 @@ PHP;
         $tableName = Str::snake($tableName);
 
         return <<<PHP
-<?php
+        <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+        use Illuminate\Database\Migrations\Migration;
+        use Illuminate\Database\Schema\Blueprint;
+        use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
-    public function up()
-    {
-        Schema::create('{$tableName}', function (Blueprint \$table) {
-{$schema}
-        });
-    }
+        return new class extends Migration
+        {
+            public function up()
+            {
+                Schema::create('{$tableName}', function (Blueprint \$table) {
+        {$schema}
+                });
+            }
 
-    public function down()
-    {
-        Schema::dropIfExists('{$tableName}');
-    }
-};
-PHP;
+            public function down()
+            {
+                Schema::dropIfExists('{$tableName}');
+            }
+        };
+        PHP;
     }
 
     protected function generateSchema(array $columns): string
@@ -334,11 +331,8 @@ PHP;
 
     protected function normalizeSql(string $sql): string
     {
-        // Remove comments
         $sql = preg_replace('/\/\*.*?\*\/|--.*?$/ms', '', $sql);
-        // Standardize line endings
         $sql = str_replace(["\r\n", "\r"], "\n", $sql);
-        // Remove extra spaces
         $sql = preg_replace('/\s+/', ' ', $sql);
         return trim($sql);
     }

@@ -1,11 +1,9 @@
 document.addEventListener("DOMContentLoaded", function () {
-    // DOM Elements
     const form = document.getElementById("migrationForm");
     const sqlInput = document.getElementById("sqlInput");
     const resultContainer = document.getElementById("resultContainer");
     const generateModelCheckbox = document.getElementById("generateModel");
 
-    // Validate required elements
     if (!form || !sqlInput || !resultContainer || !generateModelCheckbox) {
         console.error("Required elements not found");
         return;
@@ -17,7 +15,6 @@ document.addEventListener("DOMContentLoaded", function () {
         const sql = sqlInput.value.trim();
         const generateModel = generateModelCheckbox.checked;
 
-        // Basic validation
         if (!sql || sql.length < 10) {
             showError(
                 "Please enter valid SQL statements (minimum 10 characters)"
@@ -25,7 +22,6 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        // Show loading state
         showLoading();
 
         try {
@@ -47,12 +43,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             );
 
-            // Enhanced error handling
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 console.error("Server Error Details:", errorData);
 
-                // Check for specific error cases
                 if (
                     errorData.error &&
                     errorData.error.includes("buildPlaceholders")
@@ -120,7 +114,6 @@ document.addEventListener("DOMContentLoaded", function () {
             const badgeClass =
                 file.type === "migration" ? "bg-primary" : "bg-success";
 
-            // Create a temporary div to properly escape HTML
             const tempDiv = document.createElement("div");
             tempDiv.textContent = file.code;
             const escapedCode = tempDiv.innerHTML;
@@ -157,10 +150,7 @@ document.addEventListener("DOMContentLoaded", function () {
         html += "</div>";
         resultContainer.innerHTML = html;
 
-        // Add event listeners
         addEventListeners();
-
-        // Safe Prism highlighting
         safeHighlightCode();
     }
 
@@ -179,48 +169,52 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         });
     }
-    function safeHighlightCode() {
-        // Wait for Prism to be fully loaded
-        const checkPrism = setInterval(() => {
-            if (window.Prism && Prism.languages && Prism.languages.php) {
-                clearInterval(checkPrism);
-                try {
-                    // Highlight each code block individually
-                    document
-                        .querySelectorAll("code.language-php")
-                        .forEach((codeBlock) => {
-                            try {
-                                // Ensure the code block has content
-                                if (codeBlock.textContent.trim() === "") {
-                                    codeBlock.classList.add("no-highlight");
-                                    return;
-                                }
 
-                                // Perform the highlighting
+    function safeHighlightCode() {
+        const maxAttempts = 10;
+        let attempts = 0;
+
+        const checkInterval = setInterval(() => {
+            attempts++;
+
+            if (
+                window.Prism &&
+                Prism.languages &&
+                Prism.languages.php &&
+                typeof Prism.highlightElement === "function"
+            ) {
+                clearInterval(checkInterval);
+
+                document
+                    .querySelectorAll("code.language-php")
+                    .forEach((codeBlock) => {
+                        try {
+                            if (!codeBlock.textContent.trim()) {
+                                codeBlock.classList.add("no-highlight");
+                                return;
+                            }
+                            if (Prism.languages.php && Prism.plugins.PHP) {
                                 Prism.highlightElement(codeBlock);
-                            } catch (e) {
-                                console.error("Error highlighting element:", e);
+                            } else {
                                 codeBlock.classList.add("no-highlight");
                             }
-                        });
-                } catch (e) {
-                    console.error("Prism highlighting failed:", e);
-                }
-            }
-        }, 100);
-
-        // Timeout if Prism doesn't load
-        setTimeout(() => {
-            clearInterval(checkPrism);
-            if (!window.Prism) {
-                console.warn("Prism.js not loaded after timeout");
+                        } catch (e) {
+                            console.error("Error highlighting element:", e);
+                            codeBlock.classList.add("no-highlight");
+                            codeBlock.innerHTML = codeBlock.textContent;
+                        }
+                    });
+            } else if (attempts >= maxAttempts) {
+                clearInterval(checkInterval);
+                console.warn("Prism.js not fully loaded after max attempts");
                 document
                     .querySelectorAll("code.language-php")
                     .forEach((codeBlock) => {
                         codeBlock.classList.add("no-highlight");
+                        codeBlock.innerHTML = codeBlock.textContent;
                     });
             }
-        }, 2000);
+        }, 100);
     }
 
     // Utility functions
