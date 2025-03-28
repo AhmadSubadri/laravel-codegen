@@ -1,15 +1,15 @@
 # 🚀 Laravel CodeGen
 
-**Laravel CodeGen** adalah tool untuk mengenerate migration dan model secara otomatis dari SQL statement. Proyek ini dirancang untuk mempercepat proses pembuatan struktur database dan model di proyek Laravel.
+**Laravel CodeGen** is a tool to automatically generate migrations and models from SQL statements. This project is designed to speed up the process of creating database structures and models in Laravel projects.
 
 ---
 
-## 🛠️ Fitur
+## 🛠️ Features
 
-✅ Generate migration dari SQL statement  
-✅ Generate model dari SQL statement  
-✅ Menggunakan **Prism.js** untuk highlighting code  
-✅ Support untuk Laravel versi terbaru
+✅ Generate migration from SQL statement
+✅ Generate model from SQL statement
+✅ Use **Prism.js** for code highlighting
+✅ Support for latest Laravel version
 
 ---
 
