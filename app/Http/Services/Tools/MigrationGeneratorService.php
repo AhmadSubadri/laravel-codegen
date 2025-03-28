@@ -2,82 +2,193 @@
 
 namespace App\Http\Services\Tools;
 
+use App\Http\Controllers\Controller;
+use App\Http\Requests\GenerateMigrationRequest;
+use App\Http\Services\Tools\MigrationGeneratorService;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+
 
 class MigrationGeneratorService
 {
     public function generateFromSql(string $sql): array
     {
-        $tableStatements = preg_split('/;\s*(?=CREATE TABLE)/i', $sql);
-        $migrations = [];
+        try {
+            $sql = $this->normalizeSql($sql);
+            $this->validateSql($sql);
+            $tables = $this->extractTables($sql);
 
-        foreach ($tableStatements as $statement) {
-            $statement = trim($statement);
-            if (empty($statement)) continue;
-
-            if (preg_match('/CREATE TABLE `?([^`\s]+)`?\s*\((.+)\)/is', $statement, $matches)) {
-                $migrations[] = $this->processTable($matches[1], $matches[2]);
+            $migrations = [];
+            foreach ($tables as $table) {
+                try {
+                    $migrations[] = $this->createMigrationData($table);
+                } catch (\Exception $e) {
+                    Log::error("Migration generation failed for table {$table['name']}", [
+                        'error' => $e->getMessage()
+                    ]);
+                    continue;
+                }
             }
-        }
 
-        return $migrations;
+            if (empty($migrations)) {
+                throw new \Exception("No valid migrations were generated");
+            }
+
+            return $migrations;
+        } catch (\Exception $e) {
+            Log::error('Migration generation failed', [
+                'error' => $e->getMessage(),
+                'sql_sample' => Str::substr($sql, 0, 200)
+            ]);
+            throw $e;
+        }
     }
 
-    private function processTable(string $tableName, string $columnsPart): array
+    protected function createMigrationData(array $table): array
     {
         return [
-            'table' => $tableName,
-            'code' => $this->generateMigrationCode($tableName, $columnsPart),
-            'filename' => date('Y_m_d_His') . '_create_' . Str::snake($tableName) . '_table.php'
+            'type' => 'migration',
+            'table' => $table['name'],
+            'filename' => $this->generateMigrationName($table['name']),
+            'code' => $this->generateMigrationCode($table['name'], $table['columns'])
         ];
     }
 
-    private function generateMigrationCode(string $tableName, string $columnsPart): string
+    protected function validateSql(string $sql): void
     {
-        $columns = $this->parseColumns($columnsPart);
+        if (!preg_match('/CREATE\s+TABLE/i', $sql)) {
+            throw new \Exception("No CREATE TABLE statements found");
+        }
 
-        return '<?php
+        if (substr_count($sql, '(') !== substr_count($sql, ')')) {
+            throw new \Exception("Unbalanced parentheses in SQL");
+        }
+    }
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+    public function getTableColumns(string $tableName, string $sql): array
+    {
+        $tables = $this->extractTables($sql);
+        foreach ($tables as $table) {
+            if ($table['name'] === $tableName) {
+                return $table['columns'];
+            }
+        }
+        throw new \Exception("Table {$tableName} not found in SQL");
+    }
 
-class Create' . Str::studly($tableName) . 'Table extends Migration
+    public function generateModel(string $tableName, array $columns): string
+    {
+        $modelName = Str::studly(Str::singular($tableName));
+        $fillable = [];
+        $casts = [];
+        $timestamps = false;
+
+        foreach ($columns as $column) {
+            if (!in_array($column['name'], ['id', 'created_at', 'updated_at'])) {
+                $fillable[] = "'{$column['name']}'";
+            }
+
+            if (in_array($column['name'], ['created_at', 'updated_at'])) {
+                $timestamps = true;
+            }
+
+            if (in_array($column['type'], ['datetime', 'timestamp'])) {
+                $casts[$column['name']] = 'datetime';
+            } elseif ($column['type'] === 'json') {
+                $casts[$column['name']] = 'array';
+            }
+        }
+
+        $fillableStr = implode(",\n        ", $fillable);
+        $castsStr = $this->generateCastsString($casts);
+        $timestampsCode = $timestamps ? '' : "\n    public \$timestamps = false;";
+
+        return <<<PHP
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class {$modelName} extends Model
 {
-    public function up()
-    {
-        Schema::create(\'' . Str::snake($tableName) . '\', function (Blueprint $table) {
-' . implode("\n", $columns) . '
-        });
+    use HasFactory;
+
+    protected \$table = '{$tableName}';
+
+    protected \$fillable = [
+        {$fillableStr}
+    ];
+
+    protected \$casts = [
+        {$castsStr}
+    ];{$timestampsCode}
+}
+PHP;
     }
 
-    public function down()
+    protected function extractTables(string $sql): array
     {
-        Schema::dropIfExists(\'' . Str::snake($tableName) . '\');
-    }
-}';
+        // Normalize SQL first
+        $sql = $this->normalizeSql($sql);
+
+        // Enhanced pattern to handle more SQL variations
+        $pattern = '/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?([^`"\s]+)[`"]?\s*\(([\s\S]+?)\)\s*(?:ENGINE|CHARSET|;|$)/i';
+
+        if (!preg_match_all($pattern, $sql, $matches, PREG_SET_ORDER)) {
+            throw new \Exception("No valid CREATE TABLE statements found or invalid syntax");
+        }
+
+        $tables = [];
+        foreach ($matches as $match) {
+            try {
+                $tableName = trim($match[1], '`"');
+                $columnsDef = trim($match[2]);
+
+                if (empty($columnsDef)) {
+                    throw new \Exception("No columns defined for table {$tableName}");
+                }
+
+                $tables[] = [
+                    'name' => $tableName,
+                    'columns' => $this->parseColumns($columnsDef)
+                ];
+            } catch (\Exception $e) {
+                Log::error("Table parsing failed: " . $e->getMessage());
+                continue;
+            }
+        }
+
+        if (empty($tables)) {
+            throw new \Exception("Could not extract any valid tables from SQL");
+        }
+
+        return $tables;
     }
 
-    private function parseColumns(string $columnsPart): array
+    protected function parseColumns(string $columnsDef): array
     {
         $columns = [];
-        $columnLines = preg_split('/,\s*(?=[^)]*(?:\(|$))/', $columnsPart);
+        $lines = preg_split('/,\s*(?![^()]*\))/', $columnsDef);
 
-        foreach ($columnLines as $line) {
+        foreach ($lines as $line) {
             $line = trim($line);
-            if (empty($line)) continue;
-
-            if ($column = $this->parsePrimaryKey($line)) {
-                $columns[] = $column;
+            if (empty($line) || preg_match('/^(PRIMARY|FOREIGN|UNIQUE|KEY|CONSTRAINT|INDEX)/i', $line)) {
                 continue;
             }
 
-            if ($column = $this->parseForeignKey($line)) {
-                $columns[] = $column;
-                continue;
-            }
+            if (preg_match('/`?([^`\s]+)`?\s+([^\s(]+)(?:\(([^)]+)\))?/i', $line, $matches)) {
+                $column = [
+                    'name' => trim($matches[1], '`'),
+                    'type' => strtolower($matches[2]),
+                    'length' => isset($matches[3]) ? trim($matches[3]) : null,
+                    'nullable' => !preg_match('/NOT\s+NULL/i', $line),
+                    'default' => $this->extractDefaultValue($line),
+                    'unsigned' => preg_match('/unsigned/i', $line),
+                    'auto_increment' => preg_match('/AUTO_INCREMENT/i', $line)
+                ];
 
-            if ($column = $this->parseRegularColumn($line)) {
                 $columns[] = $column;
             }
         }
@@ -85,155 +196,150 @@ class Create' . Str::studly($tableName) . 'Table extends Migration
         return $columns;
     }
 
-    private function parsePrimaryKey(string $line): ?string
+    protected function generateMigrationName(string $tableName): string
     {
-        if (strpos($line, 'PRIMARY KEY') === false) {
-            return null;
-        }
+        return date('Y_m_d_His') . '_create_' . Str::snake($tableName) . '_table.php';
+    }
 
-        if (preg_match('/PRIMARY KEY\s*\(`?([^`)]+)`?\)/', $line, $matches)) {
-            $column = $matches[1];
-            if (stripos($line, 'auto_increment') !== false) {
-                return $column === 'id'
-                    ? "\t\t\$table->id();"
-                    : "\t\t\$table->bigIncrements('{$column}');";
+    protected function generateMigrationCode(string $tableName, array $columns): string
+    {
+        $schema = $this->generateSchema($columns);
+        $tableName = Str::snake($tableName);
+
+        return <<<PHP
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up()
+    {
+        Schema::create('{$tableName}', function (Blueprint \$table) {
+{$schema}
+        });
+    }
+
+    public function down()
+    {
+        Schema::dropIfExists('{$tableName}');
+    }
+};
+PHP;
+    }
+
+    protected function generateSchema(array $columns): string
+    {
+        $lines = ["\$table->id();"];
+        $hasTimestamps = false;
+
+        foreach ($columns as $column) {
+            if ($column['name'] === 'id') continue;
+
+            if (in_array($column['name'], ['created_at', 'updated_at'])) {
+                $hasTimestamps = true;
+                continue;
             }
-            return "\t\t\$table->unsignedBigInteger('{$column}')->primary();";
-        }
 
-        return null;
-    }
+            $method = $this->mapColumnType($column['type']);
+            $line = "\$table->{$method}('{$column['name']}'";
 
-    private function parseForeignKey(string $line): ?string
-    {
-        if (strpos($line, 'FOREIGN KEY') === false) {
-            return null;
-        }
-
-        if (preg_match('/FOREIGN KEY\s*\(`?([^`)]+)`?\)\s*REFERENCES\s*`?([^`\s.]+)`?\s*\(`?([^`)]+)`?\)/', $line, $matches)) {
-            $column = $matches[1];
-            $references = $matches[3];
-            $on = $matches[2];
-
-            if (Str::endsWith($column, '_id') && $references === 'id') {
-                $relatedTable = Str::beforeLast($column, '_id');
-                return "\t\t\$table->foreignId('{$column}')->constrained('{$on}');";
+            if ($column['length'] && !in_array($method, ['text', 'date', 'datetime', 'time'])) {
+                $line .= ', ' . $column['length'];
             }
 
-            return "\t\t\$table->foreign('{$column}')->references('{$references}')->on('{$on}');";
+            if ($column['unsigned']) {
+                $line .= '->unsigned()';
+            }
+
+            if ($column['nullable']) {
+                $line .= '->nullable()';
+            }
+
+            if ($column['default'] !== null) {
+                $default = is_numeric($column['default'])
+                    ? $column['default']
+                    : "'" . addslashes($column['default']) . "'";
+                $line .= "->default($default)";
+            }
+
+            if ($column['auto_increment']) {
+                $line .= '->autoIncrement()';
+            }
+
+            $line .= ';';
+            $lines[] = $line;
         }
 
-        return null;
+        if ($hasTimestamps) {
+            $lines[] = '$table->timestamps();';
+        }
+
+        return '            ' . implode("\n            ", $lines);
     }
 
-    private function parseRegularColumn(string $line): ?string
+    protected function mapColumnType(string $dbType): string
     {
-        if (!preg_match('/`?([^`\s]+)`?\s+([^\s]+)\s*(?:\(([^)]+)\))?\s*(.*)/', $line, $matches)) {
-            return null;
-        }
-
-        $name = $matches[1];
-        $type = strtolower($matches[2]);
-        $length = $matches[3] ?? null;
-        $modifiers = $matches[4] ?? '';
-
-        // Handle primary key auto-increment
-        if ($name === 'id' && stripos($modifiers, 'auto_increment') !== false) {
-            return "\t\t\$table->id();";
-        }
-
-        // Handle special columns
-        if ($name === 'remember_token') {
-            return "\t\t\$table->rememberToken();";
-        }
-
-        if ($name === 'created_at' || $name === 'updated_at') {
-            return '';
-        }
-
-        $laravelType = $this->mapTypeToLaravel($type, $length);
-        $laravelModifiers = $this->parseModifiers($modifiers);
-
-        // Format kolom khusus
-        if ($laravelType === 'bigInteger' && $name === 'id') {
-            return "\t\t\$table->id();";
-        }
-
-        if ($laravelType === 'timestamp' && $name === 'deleted_at') {
-            return "\t\t\$table->softDeletes();";
-        }
-
-        return "\t\t\$table->{$laravelType}('{$name}'{$this->formatLength($type,$length)}){$laravelModifiers};";
-    }
-
-    private function mapTypeToLaravel(string $type, ?string $length): string
-    {
-        $typeMap = [
+        $map = [
             'int' => 'integer',
-            'tinyint' => 'tinyInteger',
-            'smallint' => 'smallInteger',
-            'mediumint' => 'mediumInteger',
-            'bigint' => 'bigInteger',
             'varchar' => 'string',
             'char' => 'char',
             'text' => 'text',
             'mediumtext' => 'mediumText',
             'longtext' => 'longText',
-            'json' => 'json',
-            'blob' => 'binary',
-            'datetime' => 'dateTime',
-            'timestamp' => 'timestamp',
-            'date' => 'date',
-            'time' => 'time',
+            'tinyint' => 'tinyInteger',
+            'smallint' => 'smallInteger',
+            'mediumint' => 'mediumInteger',
+            'bigint' => 'bigInteger',
+            'decimal' => 'decimal',
             'float' => 'float',
             'double' => 'double',
-            'decimal' => 'decimal',
-            'boolean' => 'boolean',
+            'date' => 'date',
+            'datetime' => 'datetime',
+            'timestamp' => 'timestamp',
+            'time' => 'time',
             'enum' => 'enum',
+            'set' => 'set',
+            'json' => 'json',
+            'boolean' => 'boolean',
+            'bit' => 'boolean'
         ];
 
-        return $typeMap[$type] ?? 'string';
+        return $map[strtolower($dbType)] ?? 'string';
     }
 
-    private function parseModifiers(string $modifiers): string
+    protected function generateCastsString(array $casts): string
     {
-        $result = '';
-
-        // Handle nullable
-        if (stripos($modifiers, 'not null') !== false) {
-        } elseif (stripos($modifiers, 'null') !== false) {
-            $result .= '->nullable()';
+        if (empty($casts)) {
+            return '';
         }
 
-        // Handle default values
-        if (preg_match('/default\s+([^\s,]+)/i', $modifiers, $matches)) {
-            $default = trim($matches[1], "'`");
-            if ($default !== 'null') {
-                $result .= "->default('{$default}')";
-            }
+        $lines = [];
+        foreach ($casts as $field => $type) {
+            $lines[] = "'$field' => '$type'";
         }
 
-        if (stripos($modifiers, 'unsigned') !== false) {
-            $result .= '->unsigned()';
-        }
-
-        if (stripos($modifiers, 'unique') !== false) {
-            $result .= '->unique()';
-        }
-
-        return $result;
+        return implode(",\n        ", $lines);
     }
 
-    private function formatLength(string $type, ?string $length): string
+    protected function extractDefaultValue(string $columnDef): ?string
     {
-        if (!$length) return '';
-
-        $type = $this->mapTypeToLaravel($type, $length);
-
-        if (in_array($type, ['string', 'char', 'decimal', 'float', 'double', 'enum'])) {
-            return ", {$length}";
+        if (preg_match('/DEFAULT\s+(?:\'([^\']+)\'|`([^`]+)`|([^\s,]+))/i', $columnDef, $matches)) {
+            return $matches[1] ?? $matches[2] ?? $matches[3];
         }
+        return null;
+    }
 
-        return '';
+    protected function normalizeSql(string $sql): string
+    {
+        // Remove comments
+        $sql = preg_replace('/\/\*.*?\*\/|--.*?$/ms', '', $sql);
+        // Standardize line endings
+        $sql = str_replace(["\r\n", "\r"], "\n", $sql);
+        // Remove extra spaces
+        $sql = preg_replace('/\s+/', ' ', $sql);
+        return trim($sql);
     }
 }

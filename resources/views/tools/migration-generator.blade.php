@@ -12,11 +12,15 @@
     <div class="tool-body">
         <div class="row">
             <div class="col-md-6">
-                <form id="migrationForm">
+                <form id="migrationForm" method="POST">
                     <div class="form-group">
                         <label for="sqlInput">SQL CREATE TABLE Statements</label>
                         <textarea class="form-control" id="sqlInput" rows="15"
                             placeholder="CREATE TABLE `users` (...)"></textarea>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input type="checkbox" class="form-check-input" id="generateModel" name="generate_model" checked>
+                        <label class="form-check-label" for="generateModel">Generate Model Sekaligus</label>
                     </div>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-cog"></i> Generate Migrations

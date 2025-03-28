@@ -1,15 +1,11 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Tools\MigrationGeneratorController;
 
 Route::prefix('tools')->name('tools.')->group(function () {
-    // Migration Generator
-    Route::prefix('migration-generator')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Tools\MigrationGeneratorController::class, 'index'])
-            ->name('migration-generator');
-        Route::post('/generate', [\App\Http\Controllers\Tools\MigrationGeneratorController::class, 'generate'])
-            ->name('migration-generator.generate');
+    Route::prefix('migration-generator')->name('migration-generator.')->group(function () {
+        Route::get('/', [MigrationGeneratorController::class, 'index'])->name('index');
+        Route::post('/generate', [MigrationGeneratorController::class, 'generate'])->name('generate');
     });
-
-    // Route untuk tools lainnya bisa ditambahkan di sini
 });

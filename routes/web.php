@@ -1,14 +1,9 @@
 <?php
-require __DIR__ . '/tools.php';
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Tools\MigrationGeneratorController;
 
-Route::get('/', function () {
-    return view('welcome');
+Route::prefix('tools/migration-generator')->group(function () {
+    Route::get('/', [MigrationGeneratorController::class, 'index'])->name('tools.migration-generator');
+    Route::post('/generate', [MigrationGeneratorController::class, 'generate']);
 });
-Route::post(
-    '/tools/migration-generator/generate',
-    [MigrationGeneratorController::class, 'generate']
-)
-    ->name('tools.migration-generator.generate');
