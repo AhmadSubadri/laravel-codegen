@@ -15,6 +15,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-php.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
     @stack('styles')
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -72,15 +75,6 @@
                 <a href="{{ url('/') }}" class="cursor-pointer hover:opacity-80 transition-opacity duration-200">
                     <img src="{{ asset('images/logo.png') }}" alt="Your Logo" class="h-25 w-auto">
                 </a>
-            </div>
-
-            <div class="text-center mb-12">
-                <a href="{{ url('/') }}" class="cursor-pointer hover:opacity-80 transition-opacity duration-200">
-                    <h1 class="text-4xl font-bold mb-4 inline-block">Asdev Suite</h1>
-                </a>
-                <p class="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-                    A complete ecosystem for building high-quality web applications.
-                </p>
             </div>
 
             @yield('content')
