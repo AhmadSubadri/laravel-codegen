@@ -20,6 +20,7 @@ class Post extends Model
         'category',
         'tags',
         'published',
+        'views_count',
         'published_at',
         'user_id'
     ];
@@ -27,7 +28,13 @@ class Post extends Model
     protected $casts = [
         'tags' => 'array',
         'published_at' => 'datetime',
+        'views_count' => 'integer'
     ];
+
+    public function getTagsAttribute($value)
+    {
+        return $value ? explode(',', $value) : [];
+    }
 
     public function getFeaturedImageUrlAttribute()
     {
@@ -62,5 +69,15 @@ class Post extends Model
                 }
             }
         });
+    }
+
+    public function getReadingTimeAttribute()
+    {
+        return 1;
+    }
+
+    public function getCategoryColorAttribute()
+    {
+        return 'blue';
     }
 }

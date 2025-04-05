@@ -253,58 +253,94 @@
     </div>
 </div>
 <div class="mt-16 py-8">
-    <h3 class="text-2xl font-bold text-center mb-8 text-gray-800 dark:text-white">Latest Tech Articles</h3>
-
-    @php
-    $latestPosts = \App\Models\Post::where('published', true)
-    ->latest('published_at')
-    ->take(3)
-    ->get();
-    @endphp
-
-    @if($latestPosts->count() > 0)
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-        @foreach($latestPosts as $post)
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
-            @if($post->featured_image)
-            <img src="{{ asset('storage/' . $post->featured_image) }}" alt="{{ $post->title }}" class="w-full h-48 object-cover">
-            @endif
-            <div class="p-6">
-                <div class="flex items-center mb-2">
-                    <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
-                        {{ $post->category }}
-                    </span>
-                    <span class="text-gray-500 dark:text-gray-400 text-sm ml-2">
-                        {{ $post->published_at->format('M d, Y') }}
-                    </span>
-                </div>
-                <a href="{{ route('posts.show', $post) }}" class="block mb-2 text-xl font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400">
-                    {{ $post->title }}
-                </a>
-                <p class="mb-4 text-gray-600 dark:text-gray-300">
-                    {{ $post->excerpt ?? Str::limit(strip_tags($post->content), 100) }}
-                </p>
-                <a href="{{ route('posts.show', $post) }}" class="inline-flex items-center text-blue-600 dark:text-blue-400 hover:underline">
-                    Read more
-                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                    </svg>
-                </a>
-            </div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center">
+            <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white sm:text-4xl">
+                Latest Tech Articles
+            </h2>
+            <p class="mt-3 max-w-2xl mx-auto text-xl text-gray-500 dark:text-gray-300 sm:mt-4">
+                Discover the latest insights and trends in technology
+            </p>
         </div>
-        @endforeach
-    </div>
 
-    <div class="text-center mt-8">
-        <a href="{{ route('posts.index') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
-            View all articles
-            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+        @php
+        $latestPosts = \App\Models\Post::with('user')
+        ->where('published', true)
+        ->latest('published_at')
+        ->take(3)
+        ->get();
+        @endphp
+
+        @if($latestPosts->count() > 0)
+        <div class="mt-12 grid gap-5 md:grid-cols-3 lg:grid-cols-3">
+            @foreach($latestPosts as $post)
+            <div class="flex flex-col overflow-hidden rounded-lg shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 dark:shadow-gray-800/50">
+                @if($post->featured_image)
+                <div class="flex-shrink-0 h-48 w-full relative">
+                    <img src="{{ asset('storage/' . $post->featured_image) }}" alt="{{ $post->title }}"
+                        class="h-full w-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-t from-gray-900/50 to-transparent"></div>
+                </div>
+                @endif
+                <div class="flex flex-1 flex-col justify-between bg-white dark:bg-gray-800 p-6">
+                    <div class="flex-1">
+                        <div class="flex items-center space-x-1 mb-3">
+                            <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
+                                {{ $post->category }}
+                            </span>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">
+                                {{ $post->published_at->diffForHumans() }}
+                            </span>
+                        </div>
+                        <a href="{{ route('posts.show', $post) }}" class="block">
+                            <h3 class="text-xl font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 line-clamp-2">
+                                {{ $post->title }}
+                            </h3>
+                            <p class="mt-3 text-base text-gray-500 dark:text-gray-300 line-clamp-3">
+                                {{ $post->excerpt ?? Str::limit(strip_tags($post->content), 120) }}
+                            </p>
+                        </a>
+                    </div>
+                    <div class="mt-6 flex items-center">
+                        <div class="flex-shrink-0">
+                            <img class="h-10 w-10 rounded-full"
+                                src="{{ $post->user->avatar_url ?? 'https://ui-avatars.com/api/?name='.urlencode($post->user->name).'&color=7F9CF5&background=EBF4FF' }}"
+                                alt="{{ $post->user->name }}">
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                {{ $post->user->name }}
+                            </p>
+                            <div class="flex space-x-1 text-sm text-gray-500 dark:text-gray-400">
+                                <span>{{ $post->reading_time }} min read</span>
+                                <span aria-hidden="true">&middot;</span>
+                                <span>{{ $post->views_count }} views</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @endforeach
+        </div>
+
+        <div class="mt-12 text-center">
+            <a href="{{ route('posts.index') }}"
+                class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+                View all articles
+                <svg class="ml-2 -mr-1 w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 5.5a.5.5 0 01 0-1h5.5a.5.5 0 01.5.5v5.5a.5.5 0 01-1 0V6.707l-5.146 5.147a.5.5 0 01-.708-.708L13.293 6H10z" clip-rule="evenodd" />
+                </svg>
+            </a>
+        </div>
+        @else
+        <div class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
-        </a>
+            <h3 class="mt-2 text-lg font-medium text-gray-900 dark:text-white">No articles yet</h3>
+            <p class="mt-1 text-gray-500 dark:text-gray-400">Check back later for new tech articles.</p>
+        </div>
+        @endif
     </div>
-    @else
-    <p class="text-center text-gray-600 dark:text-gray-400">No articles yet. Check back soon!</p>
-    @endif
 </div>
 @endsection

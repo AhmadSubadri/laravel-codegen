@@ -21,4 +21,7 @@ Route::prefix('ai-asisten')->group(function () {
     Route::post('/llama', [AIAsistenController::class, 'llamaAssistant']);
 });
 
-Route::resource('posts', PostController::class)->only(['index', 'show']);
+Route::prefix('posts')->group(function () {
+    Route::get('/', [PostController::class, 'index'])->name('posts.index');
+    Route::get('/{post}', [PostController::class, 'show'])->name('posts.show');
+});
