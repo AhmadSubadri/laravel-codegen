@@ -71,7 +71,7 @@
     <!-- Main Content -->
     <main class="flex-1 flex flex-col items-center justify-center px-6 py-12 sm:py-16 lg:py-20">
         <div class="w-full max-w-7xl mx-auto">
-            <div class="flex justify-center mb-12 logo-float">
+            <div class="flex justify-center mb-6 logo-float">
                 <a href="{{ url('/') }}" class="cursor-pointer hover:opacity-80 transition-opacity duration-200">
                     <img src="{{ asset('images/logo.png') }}" alt="Your Logo" class="h-25 w-auto">
                 </a>

@@ -9,12 +9,6 @@ use Illuminate\Support\Facades\Http;
 
 class AIAsistenController extends Controller
 {
-    /**
-     * Handle the incoming request to Groq API (LLaMA 3 Turbo).
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function llamaAssistant(Request $request): JsonResponse
     {
         $request->validate([

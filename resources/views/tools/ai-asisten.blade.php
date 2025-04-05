@@ -3,18 +3,16 @@
 @section('title', 'Asdev AI Assistant')
 
 @section('content')
-<div class="max-w-4xl mx-auto px-4 py-8">
+<div class="max-w-4xl mx-auto px-4">
     <div class="text-center mb-8">
         <a href="{{ url('/') }}" class="inline-block">
             <h1 class="text-3xl font-bold text-gray-800 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Asdev AI Assistant</h1>
         </a>
-        <p class="text-gray-600 dark:text-gray-400 mt-2">Tanyakan apapun pada asisten AI profesional kami</p>
+        <p class="text-gray-600 dark:text-gray-400 mt-2">Ask our professional AI assistant anything</p>
     </div>
 
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden flex flex-col" style="height: 80vh;">
-        <!-- Chat Container -->
         <div id="chatContainer" class="flex-1 p-4 overflow-y-auto space-y-4">
-            <!-- Welcome Message -->
             <div class="flex">
                 <div class="flex-shrink-0 mr-3">
                     <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold">AI</div>
@@ -22,7 +20,7 @@
                 <div class="flex-1">
                     <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Asdev AI • Sekarang</div>
                     <div class="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 text-gray-800 dark:text-gray-200 transition-colors">
-                        <p>Halo! Saya Asdev AI Asisten. Ada yang bisa saya bantu?</p>
+                        <p>Hello! I am Asdev AI Assistant. How can I help you?</p>
                     </div>
                 </div>
             </div>

@@ -1,8 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
-    // Inisialisasi Highlight.js
     hljs.highlightAll();
 
-    // Elemen DOM
     const form = document.getElementById("aiAsistenForm");
     const promptInput = document.getElementById("prompt");
     const chatContainer = document.getElementById("chatContainer");
@@ -10,7 +8,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const sendIcon = document.getElementById("sendIcon");
     const loadingSpinner = document.getElementById("loadingSpinner");
 
-    // Event listeners
     promptInput.addEventListener("input", autoResizeTextarea);
     form.addEventListener("submit", handleFormSubmit);
 
@@ -180,37 +177,76 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function formatCodeBlocks(text) {
-        // Proteksi blok kode
-        let protectedText = text.replace(
+        let formatted = text.replace(
             /```([\w-]+)?\s*([\s\S]*?)```/gs,
-            (match, lang, code) =>
-                `%%CODEBLOCK%%${lang || "plaintext"}%%${code}%%CODEBLOCK%%`
+            (match, lang, code) => {
+                if (
+                    lang === "ruby" &&
+                    code.includes('puts " "') &&
+                    code.includes('"*"')
+                ) {
+                    code = code.replace(/\s+/g, " ").trim();
+                }
+                return `%%CODEBLOCK%%${
+                    lang || "plaintext"
+                }%%${code}%%CODEBLOCK%%`;
+            }
         );
 
-        // Escape HTML
-        let escaped = escapeHtml(protectedText)
+        formatted = formatted.replace(
+            /This will output:([\s\S]*?)Explanation:/gs,
+            (match, output) => {
+                const pyramidOutput = output.replace(
+                    /```plaintext\s*([\s\S]*?)\s*```/gs,
+                    (m, content) => {
+                        const lines = content
+                            .split("\n")
+                            .filter((l) => l.trim() !== "");
+                        const maxLength = Math.max(
+                            ...lines.map((l) => l.length)
+                        );
+                        const centered = lines
+                            .map((line) => {
+                                const spaces = " ".repeat(
+                                    (maxLength - line.length) / 2
+                                );
+                                return spaces + line;
+                            })
+                            .join("\n");
+                        return `%%PYRAMIDOUTPUT%%${centered}%%PYRAMIDOUTPUT%%`;
+                    }
+                );
+                return `This will output:${pyramidOutput}Explanation:`;
+            }
+        );
+
+        let escaped = escapeHtml(formatted)
             .replace(/&lt;br&gt;/g, "<br>")
             .replace(/&amp;nbsp;/g, " ")
             .replace(/&quot;/g, '"')
             .replace(/&amp;/g, "&");
 
-        // Restore blok kode
         escaped = escaped
             .replace(
                 /%%CODEBLOCK%%([^%]+)%%([\s\S]*?)%%CODEBLOCK%%/g,
                 (match, lang, code) => {
                     return `<div class="code-block">
-                    <div class="code-header">
-                        <span>${lang}</span>
-                        <button class="copy-btn">Salin</button>
-                    </div>
-                    <pre><code class="language-${lang}">${code.trim()}</code></pre>
-                </div>`;
+                <div class="code-header">
+                    <span>${lang}</span>
+                    <button class="copy-btn">Salin</button>
+                </div>
+                <pre><code class="language-${lang}">${code.trim()}</code></pre>
+            </div>`;
                 }
             )
-            .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-            .replace(/\*(.*?)\*/g, "<em>$1</em>");
+            .replace(
+                /%%PYRAMIDOUTPUT%%([^%]+)%%PYRAMIDOUTPUT%%/g,
+                (match, content) => {
+                    return `<div class="pyramid-output">
+                <pre>${content}</pre>
+            </div>`;
+                }
+            );
 
         return escaped;
     }

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Tools\MigrationGeneratorController;
 use App\Http\Controllers\Ai\AIAsistenController;
+use App\Http\Controllers\PostController;
 
 Route::get('/', function () {
     return view('index');
@@ -19,3 +20,5 @@ Route::prefix('ai-asisten')->group(function () {
     })->name('ai-asisten.index');
     Route::post('/llama', [AIAsistenController::class, 'llamaAssistant']);
 });
+
+Route::resource('posts', PostController::class)->only(['index', 'show']);

@@ -148,19 +148,12 @@
             <p class="text-gray-600 dark:text-gray-300 mb-4">
                 Get intelligent code suggestions, debug errors, and optimize your applications with AI.
             </p>
-            <!-- <a href="https://aistudio.instagram.com/ai/2110212979457644/?utm_source=share" target="_blank" class="block px-3 py-2 bg-blue-50 dark:bg-blue-900/30 rounded-md text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors flex items-center">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 8a3 3 0 11-6 0 3 3 0 016 0z" fill="currentColor"></path>
-                </svg>
-                Asdev AI Assistant
-            </a> -->
             <a href="https://aistudio.instagram.com/ai/2110212979457644/?utm_source=share" class="inline-flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium">
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
-                    CodeAsdev AI
-                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                     </svg>
+                    CodeAsdev AI
                 </span>
             </a>
             <a href="{{ route('ai-asisten.index') }}" class="inline-flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium">
@@ -259,5 +252,59 @@
         </div>
     </div>
 </div>
+<div class="mt-16 py-8">
+    <h3 class="text-2xl font-bold text-center mb-8 text-gray-800 dark:text-white">Latest Tech Articles</h3>
 
+    @php
+    $latestPosts = \App\Models\Post::where('published', true)
+    ->latest('published_at')
+    ->take(3)
+    ->get();
+    @endphp
+
+    @if($latestPosts->count() > 0)
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        @foreach($latestPosts as $post)
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+            @if($post->featured_image)
+            <img src="{{ asset('storage/' . $post->featured_image) }}" alt="{{ $post->title }}" class="w-full h-48 object-cover">
+            @endif
+            <div class="p-6">
+                <div class="flex items-center mb-2">
+                    <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
+                        {{ $post->category }}
+                    </span>
+                    <span class="text-gray-500 dark:text-gray-400 text-sm ml-2">
+                        {{ $post->published_at->format('M d, Y') }}
+                    </span>
+                </div>
+                <a href="{{ route('posts.show', $post) }}" class="block mb-2 text-xl font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400">
+                    {{ $post->title }}
+                </a>
+                <p class="mb-4 text-gray-600 dark:text-gray-300">
+                    {{ $post->excerpt ?? Str::limit(strip_tags($post->content), 100) }}
+                </p>
+                <a href="{{ route('posts.show', $post) }}" class="inline-flex items-center text-blue-600 dark:text-blue-400 hover:underline">
+                    Read more
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
+        @endforeach
+    </div>
+
+    <div class="text-center mt-8">
+        <a href="{{ route('posts.index') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+            View all articles
+            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+            </svg>
+        </a>
+    </div>
+    @else
+    <p class="text-center text-gray-600 dark:text-gray-400">No articles yet. Check back soon!</p>
+    @endif
+</div>
 @endsection
