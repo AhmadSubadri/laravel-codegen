@@ -8,7 +8,6 @@ use App\Http\Services\Tools\MigrationGeneratorService;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 
-
 class MigrationGeneratorService
 {
     public function generateFromSql(string $sql): array
@@ -50,7 +49,11 @@ class MigrationGeneratorService
             'type' => 'migration',
             'table' => $table['name'],
             'filename' => $this->generateMigrationName($table['name']),
-            'code' => $this->generateMigrationCode($table['name'], $table['columns'])
+            'code' => $this->generateMigrationCode(
+                $table['name'],
+                $table['columns'],
+                $table['foreign_keys'] ?? []
+            )
         ];
     }
 
@@ -58,10 +61,6 @@ class MigrationGeneratorService
     {
         if (!preg_match('/CREATE\s+TABLE/i', $sql)) {
             throw new \Exception("No CREATE TABLE statements found");
-        }
-
-        if (substr_count($sql, '(') !== substr_count($sql, ')')) {
-            throw new \Exception("Unbalanced parentheses in SQL");
         }
     }
 
@@ -143,22 +142,17 @@ class MigrationGeneratorService
                 $tableName = trim($match[1], '`"');
                 $columnsDef = trim($match[2]);
 
-                if (empty($columnsDef)) {
-                    throw new \Exception("No columns defined for table {$tableName}");
-                }
+                $parsed = $this->parseColumns($columnsDef);
 
                 $tables[] = [
                     'name' => $tableName,
-                    'columns' => $this->parseColumns($columnsDef)
+                    'columns' => $parsed['columns'],
+                    'foreign_keys' => $parsed['foreign_keys']
                 ];
             } catch (\Exception $e) {
                 Log::error("Table parsing failed: " . $e->getMessage());
                 continue;
             }
-        }
-
-        if (empty($tables)) {
-            throw new \Exception("Could not extract any valid tables from SQL");
         }
 
         return $tables;
@@ -167,11 +161,29 @@ class MigrationGeneratorService
     protected function parseColumns(string $columnsDef): array
     {
         $columns = [];
+        $foreignKeys = [];
         $lines = preg_split('/,\s*(?![^()]*\))/', $columnsDef);
 
         foreach ($lines as $line) {
             $line = trim($line);
-            if (empty($line) || preg_match('/^(PRIMARY|FOREIGN|UNIQUE|KEY|CONSTRAINT|INDEX)/i', $line)) {
+            if (empty($line)) continue;
+
+            if (preg_match('/FOREIGN\s+KEY\s*\(`?([^`)]+)`?\)\s*REFERENCES\s*`?([^`)]+)`?\s*\(`?([^`)]+)`?\)/i', $line, $fkMatches)) {
+                $foreignKeys[] = [
+                    'column' => trim($fkMatches[1], '`'),
+                    'foreign_table' => trim($fkMatches[2], '`'),
+                    'foreign_column' => trim($fkMatches[3], '`'),
+                    'on_delete' => preg_match('/ON\s+DELETE\s+(CASCADE|SET NULL|RESTRICT|NO ACTION)/i', $line, $onDelete)
+                        ? strtolower($onDelete[1])
+                        : 'restrict',
+                    'on_update' => preg_match('/ON\s+UPDATE\s+(CASCADE|SET NULL|RESTRICT|NO ACTION)/i', $line, $onUpdate)
+                        ? strtolower($onUpdate[1])
+                        : 'restrict'
+                ];
+                continue;
+            }
+
+            if (preg_match('/^(PRIMARY|UNIQUE|KEY|CONSTRAINT|INDEX)/i', $line)) {
                 continue;
             }
 
@@ -190,7 +202,10 @@ class MigrationGeneratorService
             }
         }
 
-        return $columns;
+        return [
+            'columns' => $columns,
+            'foreign_keys' => $foreignKeys
+        ];
     }
 
     protected function generateMigrationName(string $tableName): string
@@ -198,9 +213,9 @@ class MigrationGeneratorService
         return date('Y_m_d_His') . '_create_' . Str::snake($tableName) . '_table.php';
     }
 
-    protected function generateMigrationCode(string $tableName, array $columns): string
+    protected function generateMigrationCode(string $tableName, array $columns, array $foreignKeys = []): string
     {
-        $schema = $this->generateSchema($columns);
+        $schema = $this->generateSchema($columns, $foreignKeys);
         $tableName = Str::snake($tableName);
 
         return <<<PHP
@@ -227,7 +242,7 @@ class MigrationGeneratorService
         PHP;
     }
 
-    protected function generateSchema(array $columns): string
+    protected function generateSchema(array $columns, array $foreignKeys = []): string
     {
         $lines = ["\$table->id();"];
         $hasTimestamps = false;
@@ -246,6 +261,8 @@ class MigrationGeneratorService
             if ($column['length'] && !in_array($method, ['text', 'date', 'datetime', 'time'])) {
                 $line .= ', ' . $column['length'];
             }
+
+            $line .= ')';
 
             if ($column['unsigned']) {
                 $line .= '->unsigned()';
@@ -268,6 +285,13 @@ class MigrationGeneratorService
 
             $line .= ';';
             $lines[] = $line;
+        }
+
+        foreach ($foreignKeys as $fk) {
+            $lines[] = "\$table->foreign('{$fk['column']}')"
+                . "->references('{$fk['foreign_column']}')"
+                . "->on('{$fk['foreign_table']}')"
+                . "->onDelete('{$fk['on_delete']}');";
         }
 
         if ($hasTimestamps) {
